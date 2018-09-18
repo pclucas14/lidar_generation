@@ -1,0 +1,1 @@
+{"autoencoder": 0, "use_selu": 0, "lr": 0.0001, "z_dim": 128, "kl_warmup_epochs": 200, "batch_size": 64, "use_round_conv": 0, "use_spectral_norm": 0, "base_dir": "/home/lpagec/scratch/lidar_generation/vae_classic/Conv0_BS64_LR:0.0001_XYZ:0_KLwarm200_IAF0", "no_polar": 0, "iaf": 0, "atlas_baseline": 0, "optim": "Adam"}

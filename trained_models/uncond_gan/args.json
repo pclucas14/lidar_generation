@@ -1,0 +1,1 @@
+{"use_round_conv": 0, "gen_lr": 0.0001, "optim": "rmsprop", "use_selu": 0, "no_polar": 0, "base_dir": "/home/lpagec/scratch/lidar_generation/gan_classic/Conv0_Selu0_SN1_Loss0_BS32_OPTrmspropGLR:0.0001_DLR:0.0001XYZ:0", "use_spectral_norm": 1, "dis_iters": 1, "batch_size": 32, "loss": 0, "dis_lr": 0.0001}
