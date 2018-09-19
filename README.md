@@ -23,5 +23,5 @@ Official Pytorch implementation to generate LiDAR scans using GANs and VAEs
 Pretrained model weights are available in `trained_models` directory. Use the function `load_model_from_file` to properly load the weights. 
 
 ## Aknowledgements
-Thanks to [Fxia2] (https://github.com/fxia22/) for his NNDistance module. 
-Thanks to [Thibault GROUEIX] (https://github.com/ThibaultGROUEIX) and [Panos Achlioptas] (https://github.com/optas) for open sourcing their code. 
+Thanks to [Fxia2](https://github.com/fxia22/) for his NNDistance module. 
+Thanks to [Thibault GROUEIX](https://github.com/ThibaultGROUEIX) and [Panos Achlioptas](https://github.com/optas) for open sourcing their code. 
