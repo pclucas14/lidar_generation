@@ -3,7 +3,6 @@ import torch
 import torch.nn.functional as F
 import os
 
-from models import netD, netG, VAE
 # -------------------------------------------------------------------------
 # Handy Utilities
 # -------------------------------------------------------------------------
@@ -44,6 +43,7 @@ def from_polar(velo):
     x = torch.Tensor(np.cos(angles)).cuda().unsqueeze(0).unsqueeze(0) * dist
     y = torch.Tensor(np.sin(angles)).cuda().unsqueeze(0).unsqueeze(0) * dist
     out = torch.stack([x,y,z], dim=1)
+
     return out
 
 def from_polar_np(velo):
@@ -162,26 +162,45 @@ def preprocess(dataset):
 
     return dataset[:, :, :, ::2]
 
-def show_pc(velo):
+
+def show_pc(velo, save=0):
     import mayavi.mlab
-    #fig = mayavi.mlab.figure(bgcolor=(0, 0, 0), size=(640, 360))
-    if len(velo.shape) == 3: 
-        if velo.shape[2] != 3:
+
+    fig = mayavi.mlab.figure(size=(1400, 700), bgcolor=(0,0,0)) 
+
+    if len(velo.shape) == 3:
+        if velo.shape[0] == 3 : 
             velo = velo.transpose(1,2,0)
 
+        assert velo.shape[2] == 3
         velo = velo.reshape((-1, 3))
 
+    max_ = np.absolute(velo[:, :2]).max()
     nodes = mayavi.mlab.points3d(
         velo[:, 0],   # x
         velo[:, 1],   # y
         velo[:, 2],   # z
-        scale_factor=0.005, #0.022,     # scale of the points
-    )
+        scale_factor=0.008, #0.022,     # scale of the points
+        figure=fig) 
+    
     nodes.glyph.scale_mode = 'scale_by_vector'
     color = (velo[:, 2] - velo[:, 2].min()) / (velo[:, 2].max() - velo[:, 2].min())
+    color = (velo[:, 2] - -0.069667026) / ( 0.0041348818 - -0.069667026)
+    
     nodes.mlab_source.dataset.point_data.scalars = color
     print('showing pc')
-    mayavi.mlab.show()
+    aa, bb = -95, -40 #np.random.randint(-105, -85), np.random.randint(-55, -35)
+    print(aa, bb)
+    mayavi.mlab.view(azimuth=-87, elevation=-40, focalpoint=(0, 0, np.median(velo[:, -1])))
+    f = mayavi.mlab.gcf()
+    f.scene.camera.zoom(2.7)
+
+    if save:
+        print(save)
+        mayavi.mlab.savefig('../inter_images_2/{}.png'.format(i))
+        mayavi.mlab.close()
+    else:
+        mayavi.mlab.show()
 
 def to_attr(args_dict):
     class AttrDict(dict):
@@ -193,6 +212,7 @@ def to_attr(args_dict):
 
 
 def load_model_from_file(path, epoch, model='dis'):
+    from models import netD, netG, VAE
     import json
     with open(os.path.join(path, 'args.json'), 'r') as f: 
         old_args = json.load(f)
@@ -249,7 +269,4 @@ def get_chamfer_dist():
 
 
 if __name__ == '__main__':
-    x = torch.cuda.FloatTensor(16, 40 * 256, 3).normal_()
-    y = torch.cuda.FloatTensor(16, 40 * 256, 3).normal_()
-    CD = get_chamfer_dist()
-    dist = CD(x,y)
+    import pdb; pdb.set_trace()
