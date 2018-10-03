@@ -105,7 +105,7 @@ for epoch in range(1000):
                 dis_loss = (torch.mean((real_out - 1) ** 2) + torch.mean((fake_out - 0) ** 2)) / 2
 
             losses_d += [dis_loss.mean().data[0]]
-            delta_d  += [(real_out.mean() - fake.mean()).data[0]]
+            delta_d  += [(real_out.mean() - fake_out.mean()).data[0]]
            
             dis_optim.zero_grad()
             dis_loss.backward()
