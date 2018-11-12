@@ -192,6 +192,8 @@ class VAE(nn.Module):
             mu, logvar = torch.chunk(z, 2, dim=1)
             std = torch.exp(0.5 * logvar)
             eps = torch.randn_like(std)
+            
+            # simple way to get better reconstructions. Note that this is not a valid NLL_test bd
             z = eps.mul(std).add_(mu) if self.training else mu
 
             if self.args.iaf:

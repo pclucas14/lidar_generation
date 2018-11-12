@@ -163,7 +163,7 @@ def preprocess(dataset):
     return dataset[:, :, :, ::2]
 
 
-def show_pc(velo, save=0):
+def show_pc(velo, save=0, save_path=None):
     import mayavi.mlab
 
     fig = mayavi.mlab.figure(size=(1400, 700), bgcolor=(0,0,0)) 
@@ -198,6 +198,9 @@ def show_pc(velo, save=0):
     if save:
         print(save)
         mayavi.mlab.savefig('../inter_images_2/{}.png'.format(i))
+        mayavi.mlab.close()
+    elif save_path is not None:
+        mayavi.mlab.savefig(save_path)
         mayavi.mlab.close()
     else:
         mayavi.mlab.show()

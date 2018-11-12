@@ -144,6 +144,9 @@ for epoch in range(1000):
         
                 kl_obj  =  min(1, float(epoch) / args.kl_warmup_epochs) * torch.clamp(kl_cost, min=5)
 
+                if args.autoencoder:
+                    kl_obj = 0.
+
                 loss = (kl_obj + loss_recon).mean(dim=0)
 
                 elbo = (kl_cost + loss_recon).mean(dim=0)
