@@ -1,6 +1,6 @@
 # lidar_generation
 
-Official Pytorch implementation to generate LiDAR scans using GANs and VAEs
+Official Pytorch implementation of "Deep Generative Modeling of LiDAR data", which can be found [here](https://arxiv.org/abs/1812.01180)
 
 
 | | |
