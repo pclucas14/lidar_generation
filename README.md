@@ -24,4 +24,6 @@ Pretrained model weights are available in `trained_models` directory. Use the fu
 
 ## Aknowledgements
 Thanks to [Fxia2](https://github.com/fxia22/) for his NNDistance module. 
-Thanks to [Thibault GROUEIX](https://github.com/ThibaultGROUEIX) and [Panos Achlioptas](https://github.com/optas) for open sourcing their code. 
+Thanks to [Thibault GROUEIX](https://github.com/ThibaultGROUEIX) and [Panos Achlioptas](https://github.com/optas) for open sourcing their code. </br>
+Thanks to [Alexia JM](https://github.com/AlexiaJM/RelativisticGAN) for her open source code on Relativistic GANs. Please check out her work if you are working with GANs!
+
