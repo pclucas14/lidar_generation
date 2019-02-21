@@ -29,35 +29,30 @@ class netG(nn.Module):
 
         layers  = []
         layers += [sn(conv(nz, ngf * 8, ff, 1, 0, bias=False))]
-        
         layers += [nn.BatchNorm2d(ngf * 8)] 
         layers += [nn.ReLU(True)]
 
         layers += [sn(conv(ngf * 8, ngf * 4, (3,4), stride=2, padding=(0,1), bias=False))]
-
         layers += [nn.BatchNorm2d(ngf * 4)] 
         layers += [nn.ReLU(True)]
         
         layers += [sn(conv(ngf * 4, ngf * 2, (4,4), stride=2, padding=(1,1), bias=False))]
-
         layers += [nn.BatchNorm2d(ngf * 2)] 
         layers += [nn.ReLU(True)]
         
+        if self.args.attention_gen:
+            layers += [Self_Attn(ngf * 2, logits='learned')]
+        
         layers += [sn(conv(ngf * 2, ngf * 1, (4,4), stride=2, padding=(1,1), bias=False))]
-
         layers += [nn.BatchNorm2d(ngf * 1)] 
         layers += [nn.ReLU(True)]
 
-        # TODO: remove this
-        # layers += [Self_Attn(ngf * 1)]
-        # layers += [conv_res_block(ngf, ngf, 5)]
+        if self.args.attention_gen:
+            layers += [Self_Attn(ngf, logits='learned')]
 
         layers += [sn(conv(ngf, nc, 4, 2, 1, bias=False))]
         layers += [nn.Tanh()]
         
-        # TODO: remove this
-        # layers += [Self_Attn(nc, rel_dist_scaling=0), nn.Tanh()]
-
         self.main = nn.Sequential(*layers)
 
     def forward(self, input):
@@ -87,13 +82,16 @@ class netD(nn.Module):
         layers += [sn(conv(ndf * 2, ndf * 4, 4, 2, 1, bias=False))]
         layers += [nn.BatchNorm2d(ndf * 4)]
         layers += [nn.LeakyReLU(0.2, inplace=True)]
+        
+        if self.args.attention:
+            layers += [Self_Attn(ndf * 4, logits=self.args.attention_logits)]
 
         layers += [sn(conv(ndf * 4, ndf * 8, (3,4), 2, (0,1), bias=False))]
         layers += [nn.BatchNorm2d(ndf * 8)]
         layers += [nn.LeakyReLU(0.2, inplace=True)]
 
         if self.args.attention:
-            layers += [Self_Attn(ndf * 8)]
+            layers += [Self_Attn(ndf * 8, logits=self.args.attention_logits)]
 
         self.main = nn.Sequential(*layers)
         self.out  = sn(conv(ndf * 8, nz, lf, 1, 0, bias=False))
@@ -102,19 +100,21 @@ class netD(nn.Module):
     def forward(self, input, return_hidden=False):
         if input.size(-1) == 3: 
             input = input.transpose(1, 3)
-      
-        x = self.main[:-1](input)
-        
-        if self.args.attention:
-            points = from_polar(input)
-            x = self.main[-1](x, points=points)
-        else:
-            x = self.main[-1](x)
 
+        # create points if required
+        if self.args.attention: points = from_polar(input)
+
+        x = input
+        for layer in self.main:
+            if type(layer) == Self_Attn and self.args.attention_logits != 'learned':
+                x = layer(x, points=points)
+            else:
+                x = layer(x)
+                
         output = self.out(x) 
        
         if return_hidden:
-            return output, output_tmp
+            return output, x
         
         return output if self.encoder else output.view(-1, 1).squeeze(1) 
 

@@ -50,11 +50,14 @@ class round_deconv2d(nn.ConvTranspose2d):
 
 class Self_Attn(nn.Module):
     """ Self attention Layer"""
-    def __init__(self, in_dim, activation='relu', rel_dist_scaling=0):
+    def __init__(self, in_dim, activation='relu', rel_dist_scaling=0, temp=5, logits='dist'):
         super(Self_Attn,self).__init__()
         self.chanel_in = in_dim
         self.activation = activation
         self.rel_dist_scaling = rel_dist_scaling
+
+        self.temp = temp
+        self.logits = logits
        
 
         out_c = max(in_dim//8, 1)
@@ -75,7 +78,8 @@ class Self_Attn(nn.Module):
                 attention: B X N X N (N is Width*Height)
         """
         m_batchsize, C, width ,height = x.size() # (bs, C, H, W)
-        if points is not None:
+
+        if points is not None and self.logits in ['mix', 'dist']:
             # calculate distance
             factor = points.size(-1) // x.size(-1)
             points = points[:, :, ::factor, ::factor]
@@ -83,16 +87,21 @@ class Self_Attn(nn.Module):
             points = points[:, :, offset:]
             points = points.reshape(points.size(0), points.size(1), -1)
             distance = batch_pairwise_dist(points, points)
-            attention = self.softmax((distance.max() - distance) * 5)
+            logits = (distance.max() - distance) * self.temp
 
-        else:
+        if self.logits in ['mix', 'learned']:
             proj_query = self.query_conv(x).view(m_batchsize,-1,width*height).permute(0,2,1) # (bs, H*W, c_out)
             proj_key =  self.key_conv(x).view(m_batchsize,-1,width*height) # (bs, c_out, H*W)
         
             energy = torch.bmm(proj_query,proj_key) # transpose check
 
-            attention = self.softmax(energy) # BX (N) X (N) 
-       
+            if self.logits == 'mix':
+                attention = self.softmax(logits + energy)
+            else:
+                attention = self.softmax(energy)
+        else:
+            attention = self.softmax(distance)
+
         proj_value = self.value_conv(x).view(m_batchsize,-1,width*height) # B X C X N
 
         out = torch.bmm(proj_value,attention.permute(0,2,1) )

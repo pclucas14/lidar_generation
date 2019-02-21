@@ -8,7 +8,7 @@ import sys
 
 BASE_DIR='/home/lpagec/scratch/lidar_generation/vae2'
 
-runs = 3*3*2 
+runs = 3*2 
 run_counter = 0
 ran_exps = []
 collisions = 0
@@ -16,7 +16,7 @@ collisions = 0
 while run_counter < runs:
 
     disc = ['base', 'flex', 'attn']
-    p = [1./3] * 3
+    p = [0, 0, 1]
     disc_ = np.random.choice(disc, 1, p=p)[0]
 
     if disc_ == 'base':
@@ -28,17 +28,25 @@ while run_counter < runs:
     elif disc_ == 'attn':
         attention = 1
         disc = 'conv'
+    
+    logits = ['mix', 'learned', 'dist']
+    p = [1./3.] * 3
+    logits = np.random.choice(logits, 1, p=p)[0]
+    
+    attn_gen = [0, 1]
+    p = [.5] * 2
+    attn_gen = np.random.choice(attn_gen, 1, p=p)[0]
 
     bs = [128, 64, 32]
-    p = [0.2, 0.4, 0.4]
+    p = [0., 1, 0]
     bs = np.random.choice(bs, 1, p=p)[0]
 
     ## glr
     gen_lr = [1e-4, 2e-4]
-    p = [0.5, 0.5]
+    p = [0, 1]
     gen_lr = np.random.choice(gen_lr, 1, p=p)[0]
 
-    base_dir = "%(BASE_DIR)s/DISC%(disc_)s_BS%(bs)s_GLR%(gen_lr)s" % locals()
+    base_dir = "%(BASE_DIR)s/DISC%(disc_)s_BS%(bs)s_GLR%(gen_lr)s_ATTNG%(attn_gen)s_LOG%(logits)s" % locals()
 
     print(base_dir)
 
@@ -47,6 +55,8 @@ while run_counter < runs:
         --attention %(attention)s \
         --base_dir %(base_dir)s \
         --lr %(gen_lr)s \
+        --attention_logits %(logits)s \
+        --attention_gen %(attn_gen)s \
         --batch_size %(bs)s" % locals()
 
     print(command)

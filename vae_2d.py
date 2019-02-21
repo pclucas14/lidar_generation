@@ -23,9 +23,9 @@ parser.add_argument('--base_dir', type=str, default='runs/test')
 parser.add_argument('--no_polar', type=int, default=0)
 parser.add_argument('--optim',  type=str, default='Adam')
 parser.add_argument('--lr', type=float, default=1e-4)
-parser.add_argument('--z_dim', type=int, default=128)
+parser.add_argument('--z_dim', type=int, default=256)
 parser.add_argument('--iaf', type=int, default=0)
-parser.add_argument('--autoencoder', type=int, default=0)
+parser.add_argument('--autoencoder', type=int, default=1)
 parser.add_argument('--atlas_baseline', type=int, default=0, help='this flag is also used to determine the number of primitives used in the model')
 parser.add_argument('--panos_baseline', type=int, default=0)
 parser.add_argument('--kl_warmup_epochs', type=int, default=150)
@@ -34,6 +34,9 @@ parser.add_argument('--log', type=int, default=1)
 parser.add_argument('--test', action='store_true')
 parser.add_argument('--disc', type=str, default='conv', choices=['conv', 'flex'])
 parser.add_argument('--attention', type=int, default=0)
+parser.add_argument('--attention_gen', type=int, default=0)
+parser.add_argument('--temp', type=float, default=5)
+parser.add_argument('--attention_logits', type=str, default='dist', choices=['mix', 'learned', 'dist'])
 
 args = parser.parse_args()
 maybe_create_dir(args.base_dir)
@@ -60,7 +63,7 @@ writes = 0
 ns     = 16
 
 # dataset preprocessing
-dataset = np.load('kitti_data/lidar.npz')[:1000]
+dataset = np.load('kitti_data/lidar.npz')#[:1000]
 dataset = preprocess(dataset).astype('float32')
 dataset_train = from_polar_np(dataset) if args.no_polar else dataset
 
