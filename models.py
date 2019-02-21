@@ -7,48 +7,15 @@ import torch.optim as optim
 import torchvision
 import numpy as np
 import pdb
-from utils import *
+
+from utils  import *
+from layers import * 
 try:
     import torch.nn.utils.spectral_norm as spectral_norm
 except:
     print('pytorch version too old for spectral norm')
     spectral_norm = lambda x : x
 
-
-# --------------------------------------------------------------------------
-# Define rotation equivariant layers
-# -------------------------------------------------------------------------- 
-class round_conv2d(nn.Conv2d):
-    def __init__(self, channels_in, channels_out, filter_size, stride=1, padding=(0,0), bias=True):
-        if isinstance(padding, int):
-            padding = (padding, padding)
-
-        super().__init__(channels_in, channels_out, filter_size, stride=stride, padding=(padding[0], 0), bias=bias)
-        self.padding_ = padding[1]
-
-    def forward(self, x):
-        # first, we pad the input
-        input = x
-        if self.padding_ > 0:
-            x = torch.cat([x[:, :, :, -self.padding_:], x, x[:, :, :, :self.padding_]], dim=-1)
-        out = super().forward(x)
-        return out
-
-class round_deconv2d(nn.ConvTranspose2d):
-    def __init__(self, channels_in, channels_out, filter_size, stride=1, padding=(0,0), bias=True):
-        if isinstance(padding, int):
-            padding = (padding, padding)
-        
-        super().__init__(channels_in, channels_out, filter_size, stride=stride, padding=(padding[0], 0), bias=bias)
-        
-        self.padding_ = padding[1]
-
-    def forward(self, x):
-        input = x
-        if self.padding_ > 0:
-           x = torch.cat([x[:, :, :, -self.padding_:], x, x[:, :, :, 0:self.padding_]], dim=-1)
-        out = super().forward(x)
-        return out
 
 # --------------------------------------------------------------------------
 # Core Models 
@@ -63,38 +30,33 @@ class netG(nn.Module):
         layers  = []
         layers += [sn(conv(nz, ngf * 8, ff, 1, 0, bias=False))]
         
-        if args.use_selu:
-            layers += [nn.SELU()]
-        else: 
-            layers += [nn.BatchNorm2d(ngf * 8)] 
-            layers += [nn.ReLU(True)]
+        layers += [nn.BatchNorm2d(ngf * 8)] 
+        layers += [nn.ReLU(True)]
 
         layers += [sn(conv(ngf * 8, ngf * 4, (3,4), stride=2, padding=(0,1), bias=False))]
 
-        if args.use_selu:
-            layers += [nn.SELU()]
-        else: 
-            layers += [nn.BatchNorm2d(ngf * 4)] 
-            layers += [nn.ReLU(True)]
+        layers += [nn.BatchNorm2d(ngf * 4)] 
+        layers += [nn.ReLU(True)]
         
         layers += [sn(conv(ngf * 4, ngf * 2, (4,4), stride=2, padding=(1,1), bias=False))]
 
-        if args.use_selu:
-            layers += [nn.SELU()]
-        else: 
-            layers += [nn.BatchNorm2d(ngf * 2)] 
-            layers += [nn.ReLU(True)]
+        layers += [nn.BatchNorm2d(ngf * 2)] 
+        layers += [nn.ReLU(True)]
         
         layers += [sn(conv(ngf * 2, ngf * 1, (4,4), stride=2, padding=(1,1), bias=False))]
 
-        if args.use_selu:
-            layers += [nn.SELU()]
-        else: 
-            layers += [nn.BatchNorm2d(ngf * 1)] 
-            layers += [nn.ReLU(True)]
+        layers += [nn.BatchNorm2d(ngf * 1)] 
+        layers += [nn.ReLU(True)]
+
+        # TODO: remove this
+        # layers += [Self_Attn(ngf * 1)]
+        # layers += [conv_res_block(ngf, ngf, 5)]
 
         layers += [sn(conv(ngf, nc, 4, 2, 1, bias=False))]
         layers += [nn.Tanh()]
+        
+        # TODO: remove this
+        # layers += [Self_Attn(nc, rel_dist_scaling=0), nn.Tanh()]
 
         self.main = nn.Sequential(*layers)
 
@@ -108,6 +70,7 @@ class netG(nn.Module):
 class netD(nn.Module):
     def __init__(self, args, ndf=64, nc=2, nz=1, lf=(2,16)):
         super(netD, self).__init__()
+        self.args    = args
         self.encoder = True if nz > 1 else False
         
         conv = round_conv2d if args.use_round_conv else nn.Conv2d
@@ -115,51 +78,96 @@ class netD(nn.Module):
 
         layers  = []
         layers += [sn(conv(nc, ndf, 4, 2, 1, bias=False))]
-        
-        if args.use_selu:
-            layers += [nn.SELU()]
-        else: 
-            layers += [nn.LeakyReLU(0.2, inplace=True)]
+        layers += [nn.LeakyReLU(0.2, inplace=True)]
         
         layers += [sn(conv(ndf, ndf * 2, 4, 2, 1, bias=False))]
-        
-        if args.use_selu:
-            layers += [nn.SELU()]
-        else: 
-            layers += [nn.BatchNorm2d(ndf * 2)]
-            layers += [nn.LeakyReLU(0.2, inplace=True)]
-        
+        layers += [nn.BatchNorm2d(ndf * 2)]
+        layers += [nn.LeakyReLU(0.2, inplace=True)]
+
         layers += [sn(conv(ndf * 2, ndf * 4, 4, 2, 1, bias=False))]
-        
-        if args.use_selu:
-            layers += [nn.SELU()]
-        else: 
-            layers += [nn.BatchNorm2d(ndf * 4)]
-            layers += [nn.LeakyReLU(0.2, inplace=True)]
-        
+        layers += [nn.BatchNorm2d(ndf * 4)]
+        layers += [nn.LeakyReLU(0.2, inplace=True)]
+
         layers += [sn(conv(ndf * 4, ndf * 8, (3,4), 2, (0,1), bias=False))]
-        
-        if args.use_selu:
-            layers += [nn.SELU()]
-        else: 
-            layers += [nn.BatchNorm2d(ndf * 8)]
-            layers += [nn.LeakyReLU(0.2, inplace=True)]
+        layers += [nn.BatchNorm2d(ndf * 8)]
+        layers += [nn.LeakyReLU(0.2, inplace=True)]
+
+        if self.args.attention:
+            layers += [Self_Attn(ndf * 8)]
 
         self.main = nn.Sequential(*layers)
-        
-        self.out = sn(conv(ndf * 8, nz, lf, 1, 0, bias=False))
+        self.out  = sn(conv(ndf * 8, nz, lf, 1, 0, bias=False))
+
 
     def forward(self, input, return_hidden=False):
         if input.size(-1) == 3: 
             input = input.transpose(1, 3)
+      
+        x = self.main[:-1](input)
         
-        output_tmp = self.main(input)
-        output = self.out(output_tmp)
+        if self.args.attention:
+            points = from_polar(input)
+            x = self.main[-1](x, points=points)
+        else:
+            x = self.main[-1](x)
+
+        output = self.out(x) 
        
         if return_hidden:
             return output, output_tmp
         
         return output if self.encoder else output.view(-1, 1).squeeze(1) 
+
+
+class netDFlex(nn.Module):
+    def __init__(self, args, ndf=64, nc=2, nz=1, lf=(2,16)):
+        super(netDFlex, self).__init__()
+        self.encoder = True if nz > 1 else False
+        
+        conv = round_conv2d if args.use_round_conv else nn.Conv2d
+        sn   = spectral_norm if args.use_spectral_norm else (lambda x : x)
+        
+        res_block = lambda c_in, c_out: conv_res_block(c_in, c_out, 4, \
+                            stride=2, act=nn.LeakyReLU(0.2))
+
+        layers, layers_flex  = [], []
+
+        layers_flex += [res_block(nc,      ndf)]
+        layers_flex += [res_block(ndf,     ndf * 2)]
+        layers_flex += [res_block(ndf * 2, ndf * 4)]
+        
+        layers += [sn(conv(ndf * 4, ndf * 8, (3,4), 2, (0,1), bias=False))]
+        layers += [nn.BatchNorm2d(ndf * 8)]
+        layers += [nn.LeakyReLU(0.2, inplace=True)]
+
+        self.flex = nn.Sequential(*layers_flex)
+        self.mid  = nn.Sequential(*layers)
+        self.out  = sn(conv(ndf * 8, nz, lf, 1, 0, bias=False))
+
+
+    def forward(self, input, return_hidden=False):
+        if input.size(-1) in [2,3]: 
+            input = input.transpose(1, 3)
+      
+        points = from_polar(input)
+        x      = input
+
+        # flex conv
+        for layer in self.flex:
+            x = layer(x, points=points)
+            points = points[:, :, ::2, ::2]
+
+        # normal part
+        output_tmp = self.mid(x)
+
+        # out layer
+        output = self.out(output_tmp)
+        
+        if return_hidden:
+            return output, output_tmp
+        
+        return output if self.encoder else output.view(-1, 1).squeeze(1) 
+
 
 
 class VAE(nn.Module):
@@ -175,7 +183,11 @@ class VAE(nn.Module):
             self.decode = self.AE.decode if args.atlas_baseline else PointGenPSG2(nz=args.z_dim) 
         else: 
             mult = 1 if args.autoencoder else 2
-            self.encode = netD(args, nz=args.z_dim * mult, nc=3 if args.no_polar else 2)
+            if args.disc   == 'conv':
+                self.encode = netD(args, nz=args.z_dim * mult, nc=3 if args.no_polar else 2)
+            elif args.disc == 'flex':
+                self.encode = netDFlex(args, nz=args.z_dim * mult, nc=3 if args.no_polar else 2)
+
             self.decode = netG(args, nz=args.z_dim, nc=3 if args.no_polar else 2)
 
         if not args.autoencoder and args.iaf:
@@ -187,7 +199,7 @@ class VAE(nn.Module):
             z = z.squeeze(-1)
             
         if self.args.autoencoder:
-            return self.decode(z), None
+            return self.decode(z), torch.cuda.FloatTensor([0])
         else:
             mu, logvar = torch.chunk(z, 2, dim=1)
             std = torch.exp(0.5 * logvar)
