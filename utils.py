@@ -47,12 +47,55 @@ def from_polar(velo):
     return out
 
 def from_polar_np(velo):
+    if velo.ndim == 3: 
+        velo = velo.reshape((1, *velo.shape))
+        unsqueeze = True
+    else:
+        unsqueeze = False
+
     angles = np.linspace(0, np.pi * 2, velo.shape[-1])
     dist, z = velo[:, 0], velo[:, 1]
     x = np.cos(angles) * dist
     y = np.sin(angles) * dist
     out = np.stack([x,y,z], axis=1)
+    if unsqueeze: out = out.squeeze()
+
     return out.astype('float32')
+
+
+def augment_with_rotations(data, num_rotations=36):
+    # data is a numpy array of shape bs x 3 x _ x _ 
+    assert data.shape[-1] == 3
+
+    if isinstance(data, np.ndarray):
+        data = torch.Tensor(data).float().cuda()
+
+    # build rotation matrices
+    angles = torch.arange(num_rotations).float().cuda() * (2 * np.pi) / num_rotations
+    cos    = torch.cos(angles)
+    sin    = torch.sin(angles)
+    zer    = torch.zeros_like(angles)
+    ones   = torch.ones_like(angles)
+
+    matrices = torch.stack([cos, -sin, zer, sin, cos, zer, zer, zer, ones])
+
+    matrices = matrices.reshape(3, 3, angles.size(0))
+
+    try:
+        out = torch.einsum('abcd,def->abcef', (data, matrices))
+        out = out.permute(0, 4, 1, 2, 3)
+        out = out.reshape(-1, out.size(2), out.size(3), out.size(4))
+    except Exception as e:
+        assert 'CUDA error: out of memory' in str(e)
+        print('OOM. going on CPU')
+        data = data.cpu()
+        matrices = matrices.cpu()
+        out = torch.einsum('abcd,def->abcef', (data, matrices))
+        out = out.permute(0, 4, 1, 2, 3)
+        out = out.reshape(-1, out.size(2), out.size(3), out.size(4))
+    
+    return out
+        
 
 def print_and_log_scalar(writer, name, value, write_no, end_token=''):
     if isinstance(value, list):
@@ -123,7 +166,7 @@ def remove_zeros(pc):
     return xx.cpu().data.numpy()
 
 
-def preprocess(dataset):
+def preprocess(dataset, downsize=True):
     # remove outliers 
     #min_a, max_a = np.percentile(dataset[:, :, :, [0]], 1), np.percentile(dataset[:, :, :, [0]], 99)
     #min_b, max_b = np.percentile(dataset[:, :, :, [1]], 1), np.percentile(dataset[:, :, :, [1]], 99)
@@ -149,7 +192,7 @@ def preprocess(dataset):
 
     remove = []
     for i in range(dataset.shape[0]):
-        print('processing {}/{}'.format(i, dataset.shape[0]))
+        # print('processing {}/{}'.format(i, dataset.shape[0]))
         try:
             pp = remove_zeros(dataset[i]).squeeze(0)
             dataset[i] = pp
@@ -160,19 +203,22 @@ def preprocess(dataset):
     for i in remove:
         dataset = np.concatenate([dataset[:i-1], dataset[i+1:]], axis=0)
 
-    return dataset[:, :, :, ::2]
+    return dataset[:, :, :, ::2] if downsize else dataset
 
 
-def show_pc(velo, save=0):
+def show_pc(velo, save=0, save_path=None):
     import mayavi.mlab
 
     fig = mayavi.mlab.figure(size=(1400, 700), bgcolor=(0,0,0)) 
 
     if len(velo.shape) == 3:
-        if velo.shape[0] == 3 : 
+        if velo.shape[0] in [2, 3] : 
             velo = velo.transpose(1,2,0)
 
-        assert velo.shape[2] == 3
+        if velo.shape[2] != 3:
+            assert velo.shape[2] == 2 
+            velo = from_polar_np(velo)
+
         velo = velo.reshape((-1, 3))
 
     max_ = np.absolute(velo[:, :2]).max()
@@ -198,6 +244,9 @@ def show_pc(velo, save=0):
     if save:
         print(save)
         mayavi.mlab.savefig('../inter_images_2/{}.png'.format(i))
+        mayavi.mlab.close()
+    elif save_path is not None:
+        mayavi.mlab.savefig(save_path)
         mayavi.mlab.close()
     else:
         mayavi.mlab.show()
@@ -268,5 +317,22 @@ def get_chamfer_dist():
     return loss
 
 
+def batch_pairwise_dist(x, y):
+    if x.size(-1) != 3 : x = x.transpose(2,1)
+    if y.size(-1) != 3 : y = y.transpose(2,1)
+    bs, num_points, points_dim = x.size()
+    xx = torch.bmm(x, x.transpose(2,1))
+    yy = torch.bmm(y, y.transpose(2,1))
+    zz = torch.bmm(x, y.transpose(2,1))
+    diag_ind = torch.arange(0, num_points).type(torch.LongTensor).cuda()
+    rx = xx[:, diag_ind, diag_ind].unsqueeze(1).expand_as(xx)
+    ry = yy[:, diag_ind, diag_ind].unsqueeze(1).expand_as(xx)
+    P = (rx.transpose(2,1) + ry - 2*zz)
+    return P
+    
+
+
 if __name__ == '__main__':
     import pdb; pdb.set_trace()
+    xx = np.load('sample_200.npz')[0]
+    show_pc(xx)
