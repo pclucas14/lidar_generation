@@ -246,6 +246,8 @@ def get_chamfer_dist():
     sys.path.insert(0, './nndistance')
     from modules.nnd import NNDModule
     dist = NNDModule()
+    #from chamfer_distance import ChamferDistance
+    #dist = ChamferDistance()
 
     def loss(a, b):
         if a.dim() == 4:

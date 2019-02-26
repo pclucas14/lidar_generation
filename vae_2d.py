@@ -19,10 +19,10 @@ parser.add_argument('--use_round_conv', type=int, default=0)
 parser.add_argument('--base_dir', type=str, default='runs/test')
 parser.add_argument('--no_polar', type=int, default=0)
 parser.add_argument('--optim',  type=str, default='Adam')
-parser.add_argument('--lr', type=float, default=1e-4)
+parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--z_dim', type=int, default=128)
 parser.add_argument('--iaf', type=int, default=0)
-parser.add_argument('--autoencoder', type=int, default=0)
+parser.add_argument('--autoencoder', type=int, default=1)
 parser.add_argument('--atlas_baseline', type=int, default=0, help='this flag is also used to determine the number of primitives used in the model')
 parser.add_argument('--panos_baseline', type=int, default=0)
 parser.add_argument('--kl_warmup_epochs', type=int, default=150)
@@ -47,11 +47,11 @@ writes = 0
 ns     = 16
 
 # dataset preprocessing
-dataset = np.load('../../lidar_generation/kitti_data/lidar.npz')
+dataset = np.load('../lidar_generation/kitti_data/lidar.npz')[:128]
 dataset = preprocess(dataset).astype('float32')
 dataset_train = from_polar_np(dataset) if args.no_polar else dataset
 
-dataset = np.load('kitti_data/lidar_val.npz') 
+dataset = np.load('../lidar_generation/kitti_data/lidar_val.npz') 
 dataset = preprocess(dataset).astype('float32')
 dataset_val = from_polar_np(dataset) if args.no_polar else dataset
 
@@ -86,10 +86,10 @@ for epoch in range(1000):
 
         loss_recon = loss_fn(recon, img)
 
-        kl_obj  =  min(1, float(epoch) / args.kl_warmup_epochs) * torch.clamp(kl_cost, min=5)
-        
         if args.autoencoder:
-            kl_obj = 0.
+            kl_obj, kl_cost = [torch.zeros_like(loss_recon)] * 2
+        else:
+            kl_obj  =  min(1, float(epoch) / args.kl_warmup_epochs) * torch.clamp(kl_cost, min=5)
 
         loss = (kl_obj + loss_recon).mean(dim=0)
 
@@ -141,12 +141,12 @@ for epoch in range(1000):
                 recon, kl_cost = model(img)
             
                 loss_recon = loss_fn(recon, img)
-        
-                kl_obj  =  min(1, float(epoch) / args.kl_warmup_epochs) * torch.clamp(kl_cost, min=5)
 
                 if args.autoencoder:
-                    kl_obj = 0.
-
+                    kl_obj, kl_cost = [torch.zeros_like(loss_recon)] * 2
+                else:
+                    kl_obj  =  min(1, float(epoch) / args.kl_warmup_epochs) * torch.clamp(kl_cost, min=5)
+                
                 loss = (kl_obj + loss_recon).mean(dim=0)
 
                 elbo = (kl_cost + loss_recon).mean(dim=0)
