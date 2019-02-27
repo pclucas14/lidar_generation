@@ -26,10 +26,19 @@ parser.add_argument('--autoencoder', type=int, default=1)
 parser.add_argument('--atlas_baseline', type=int, default=0, help='this flag is also used to determine the number of primitives used in the model')
 parser.add_argument('--panos_baseline', type=int, default=0)
 parser.add_argument('--kl_warmup_epochs', type=int, default=150)
+parser.add_argument('--debug', action='store_true')
 
 args = parser.parse_args()
 maybe_create_dir(args.base_dir)
 print_and_save_args(args, args.base_dir)
+
+if args.atlas_baseline or args.panos_baseline: 
+    args.no_polar = 1
+    factor = args.batch_size // 32
+    args.batch_size = 32
+    is_baseline = True
+else:
+    factor, is_baseline = 1, False
 
 # reproducibility is good
 np.random.seed(0)
@@ -47,7 +56,9 @@ writes = 0
 ns     = 16
 
 # dataset preprocessing
-dataset = np.load('../lidar_generation/kitti_data/lidar.npz')[:128]
+print('loading data')
+dataset = np.load('../lidar_generation/kitti_data/lidar.npz')
+if args.debug: dataset = dataset[:128]
 dataset = preprocess(dataset).astype('float32')
 dataset_train = from_polar_np(dataset) if args.no_polar else dataset
 
@@ -75,7 +86,7 @@ else:
 
 # VAE training
 # ------------------------------------------------------------------------------------------------
-for epoch in range(1000):
+for epoch in range(150):
     print('epoch %s' % epoch)
     model.train()
     loss_, elbo_, kl_cost_, kl_obj_, recon_ = [[] for _ in range(5)]
@@ -103,11 +114,11 @@ for epoch in range(1000):
 
         # baseline loss is very memory heavy 
         # we accumulate gradient to simulate a bigger minibatch
-        if (i+1) % 4 == 0 or not args.atlas_baseline: 
+        if (i+1) % factor == 0 or not is_baseline: 
             optim.zero_grad()
 
         loss.backward()
-        if (i+1) % 4 == 0 or not args.atlas_baseline: 
+        if (i+1) % factor == 0 or not is_baseline: 
             optim.step()
 
     writes += 1
@@ -120,13 +131,14 @@ for epoch in range(1000):
     loss_, elbo_, kl_cost_, kl_obj_, recon_ = [[] for _ in range(5)]
         
     # save some training reconstructions
-    recon = recon[:ns].cpu().data.numpy()
-    with open(os.path.join(args.base_dir, 'samples/train_{}.npz'.format(epoch)), 'wb') as f: 
-        np.save(f, recon)
+    if epoch % 10 == 0:
+         recon = recon[:ns].cpu().data.numpy()
+         with open(os.path.join(args.base_dir, 'samples/train_{}.npz'.format(epoch)), 'wb') as f: 
+             np.save(f, recon)
 
-    # log_point_clouds(writer, recon[:ns], 'train_recon', step=writes)
-    print('saved training reconstructions')
-    
+         # log_point_clouds(writer, recon[:ns], 'train_recon', step=writes)
+         print('saved training reconstructions')
+         
     
     # Testing loop
     # ----------------------------------------------------------------------
@@ -139,7 +151,7 @@ for epoch in range(1000):
             for i, img in enumerate(val_loader):
                 img = img.cuda()
                 recon, kl_cost = model(img)
-            
+           
                 loss_recon = loss_fn(recon, img)
 
                 if args.autoencoder:
@@ -166,20 +178,21 @@ for epoch in range(1000):
             print_and_log_scalar(writer, 'valid/recon', mn(recon_), writes)
             loss_, elbo_, kl_cost_, kl_obj_, recon_ = [[] for _ in range(5)]
 
-            with open(os.path.join(args.base_dir, 'samples/test_{}.npz'.format(epoch)), 'wb') as f: 
-                recon = recon[:ns].cpu().data.numpy()
-                np.save(f, recon)
-                print('saved test recons')
+            if epoch % 10 == 0:
+                with open(os.path.join(args.base_dir, 'samples/test_{}.npz'.format(epoch)), 'wb') as f: 
+                    recon = recon[:ns].cpu().data.numpy()
+                    np.save(f, recon)
+                    print('saved test recons')
 
-           
-            sample = model.sample()
-            with open(os.path.join(args.base_dir, 'samples/sample_{}.npz'.format(epoch)), 'wb') as f: 
-                sample = sample.cpu().data.numpy()
-                np.save(f, recon)
-            
-            #log_point_clouds(writer, sample, 'vae_samples', step=writes)
-            print('saved model samples')
-
+               
+                sample = model.sample()
+                with open(os.path.join(args.base_dir, 'samples/sample_{}.npz'.format(epoch)), 'wb') as f: 
+                    sample = sample.cpu().data.numpy()
+                    np.save(f, recon)
+                
+                #log_point_clouds(writer, sample, 'vae_samples', step=writes)
+                print('saved model samples')
+                
             if epoch == 0: 
                 with open(os.path.join(args.base_dir, 'samples/real.npz'), 'wb') as f: 
                     img = img.cpu().data.numpy()

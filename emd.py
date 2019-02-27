@@ -313,18 +313,33 @@ __global__ void matchcostgrad1(int b,int n,int m,const float * __restrict__ xyz1
 
 class EMD(Function):
 
-    def forward(self, xyz1, xyz2):
-        if xyz1.dim() == 4: 
-            assert xyz1.size(1) == 3
-            xyz1 = xyz1.transpose(1, -1).contiguous().reshape(xyz1.size(0), -1, 3)
+    def forward(self, a, b):
+
+        # same preprocessing as chamfer 
+        if a.dim() == 4:
+            if a.size(1) == 2: 
+                a = from_polar(a)
+
+            assert a.size(1) == 3
+            a = a.permute(0, 2, 3, 1).contiguous().reshape(a.size(0), -1, 3)
+            
+        if b.dim() == 4:
+            if b.size(1) == 2: 
+                b = from_polar(b)
+
+            assert b.size(1) == 3
+            b = b.permute(0, 2, 3, 1).contiguous().reshape(b.size(0), -1, 3)
+
+        assert a.dim() == b.dim() == 3
+        if a.size(-1) != 3: 
+            assert a.size(-2) == 3
+            a = a.transpose(-2, -1).contiguous()
         
-        if xyz2.dim() == 4: 
-            assert xyz2.size(1) == 3
-            xyz2 = xyz2.transpose(1, -1).contiguous().reshape(xyz2.size(0), -1, 3)
+        if b.size(-1) != 3: 
+            assert b.size(-2) == 3
+            b = a.transpose(-2, -1).contiguous()
 
-
-        assert xyz1.dim() == 3 and xyz1.is_cuda and xyz2.is_cuda
-        assert xyz1.shape[-1] == 3 # as done by Panos
+        xyz1, xyz2 = a, b
         batch_size, num_pts, pt_dim = xyz1.size()
         _         , m      , _      = xyz2.size()
 

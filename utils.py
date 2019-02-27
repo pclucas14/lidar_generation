@@ -149,7 +149,7 @@ def preprocess(dataset):
 
     remove = []
     for i in range(dataset.shape[0]):
-        print('processing {}/{}'.format(i, dataset.shape[0]))
+        #print('processing {}/{}'.format(i, dataset.shape[0]))
         try:
             pp = remove_zeros(dataset[i]).squeeze(0)
             dataset[i] = pp
@@ -205,6 +205,12 @@ def show_pc(velo, save=0, save_path=None):
     else:
         mayavi.mlab.show()
 
+def show_pc_lite(velo, ind=1, show=True):
+    import matplotlib.pyplot as plt
+    plt.scatter(velo[:, 0], velo[:, 1], s=0.7, color='k')
+    plt.show() 
+
+
 def to_attr(args_dict):
     class AttrDict(dict):
         def __init__(self, *args, **kwargs):
@@ -240,21 +246,43 @@ def load_model_from_file(path, epoch, model='dis'):
     return model_, epoch 
 
 
+def batch_pairwise_dist(A, B):
+    # pa, pb are bs x points x 3
+    r_A = (A * A).sum(dim=2, keepdim=True)
+    r_B = (B * B).sum(dim=2, keepdim=True)
+    m = torch.bmm(A, B.permute(0, 2, 1))
+    D = r_A - 2 * m + r_B.permute(0, 2, 1)
+    return D
+
+def chamfer_quadratic(a,b):
+    D = batch_pairwise_dist(a,b)
+    return D.min(dim=-1)[0], D.min(dim=-2)[0]
+
+
 # Utilities for baseline
-def get_chamfer_dist():
-    import sys
-    sys.path.insert(0, './nndistance')
-    from modules.nnd import NNDModule
-    dist = NNDModule()
-    #from chamfer_distance import ChamferDistance
-    #dist = ChamferDistance()
+def get_chamfer_dist(get_slow=False):
+    try:
+        if get_slow: raise ValueError
+
+        import sys
+        sys.path.insert(0, './nndistance')
+        from modules.nnd import NNDModule
+        dist = NNDModule()
+    except:
+        dist = chamfer_quadratic
 
     def loss(a, b):
         if a.dim() == 4:
+            if a.size(1) == 2: 
+                a = from_polar(a)
+
             assert a.size(1) == 3
             a = a.permute(0, 2, 3, 1).contiguous().reshape(a.size(0), -1, 3)
             
         if b.dim() == 4:
+            if b.size(1) == 2: 
+                b = from_polar(b)
+
             assert b.size(1) == 3
             b = b.permute(0, 2, 3, 1).contiguous().reshape(b.size(0), -1, 3)
 
@@ -274,4 +302,14 @@ def get_chamfer_dist():
 
 
 if __name__ == '__main__':
-    import pdb; pdb.set_trace()
+    # check if both chamfer implementations give the same results
+    ch_fast = get_chamfer_dist()
+    ch_slow = get_chamfer_dist(get_slow=True)
+
+    for _ in range(10):
+        x = torch.cuda.FloatTensor(32, 1000, 3).normal_()
+        y = torch.cuda.FloatTensor(32, 1000, 3).normal_()
+        
+        out_fast = ch_fast(x,y)
+        out_slow = ch_slow(x,y)
+
