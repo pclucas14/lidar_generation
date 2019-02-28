@@ -6,12 +6,7 @@ import os
 # -------------------------------------------------------------------------
 # Handy Utilities
 # -------------------------------------------------------------------------
-def to_polar(velo):
-    if isinstance(velo, torch.Tensor):
-        velo = velo.cpu().data.numpy()
-        convert = True
-    else:
-        convert = False
+def to_polar_np(velo):
     if len(velo.shape) == 4:
         velo = velo.transpose(1, 2, 3, 0)
 
@@ -32,9 +27,31 @@ def to_polar(velo):
 
     if len(velo.shape) == 4: 
         out = out.transpose(3, 0, 1, 2)
+    
+    return out
 
-    if convert : 
-        out = torch.Tensor(out).cuda()
+def to_polar(velo):
+    if len(velo.shape) == 4:
+        velo = velo.permute(1, 2, 3, 0)
+
+    if velo.shape[2] > 4:
+        assert velo.shape[0] <= 4
+        velo = velo.permute(1, 2, 0, 3)
+        switch=True
+    else:
+        switch=False
+    
+    # assumes r x n/r x (3,4) velo
+    dist = torch.sqrt(velo[:, :, 0] ** 2 + velo[:, :, 1] ** 2)
+    # theta = np.arctan2(velo[:, 1], velo[:, 0])
+    out = torch.stack([dist, velo[:, :, 2]], dim=2)
+    
+    if switch:
+        out = out.permute(2, 0, 1, 3)
+
+    if len(velo.shape) == 4: 
+        out = out.permute(3, 0, 1, 2)
+    
     return out
 
 def from_polar(velo):
@@ -144,7 +161,7 @@ def preprocess(dataset):
     dataset = dataset * (1 - np.expand_dims(mask, -1))
     dataset /= np.absolute(dataset).max()
 
-    dataset = to_polar(dataset).transpose(0, 3, 1, 2)
+    dataset = to_polar_np(dataset).transpose(0, 3, 1, 2)
     previous = (dataset[:, 0] == 0).sum()
 
     remove = []

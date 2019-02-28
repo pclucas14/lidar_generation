@@ -26,6 +26,7 @@ parser.add_argument('--autoencoder', type=int, default=1)
 parser.add_argument('--atlas_baseline', type=int, default=0, help='this flag is also used to determine the number of primitives used in the model')
 parser.add_argument('--panos_baseline', type=int, default=0)
 parser.add_argument('--kl_warmup_epochs', type=int, default=150)
+parser.add_argument('--loss_rep', type=str, default='polar', choices=['polar', 'xyz'])
 parser.add_argument('--debug', action='store_true')
 
 args = parser.parse_args()
@@ -95,8 +96,15 @@ for epoch in range(150):
         img = img.cuda()
         recon, kl_cost = model(img)
 
-        loss_recon = loss_fn(recon, img)
+        if args.no_polar and args.loss_rep == 'polar':
+            convert = to_polar
+        elif not args.no_polar and args.loss_rep == 'xyz':
+            convert = from_polar
+        else:
+            convert = lambda x : x
 
+        loss_recon = loss_fn(convert(recon), convert(img))
+        
         if args.autoencoder:
             kl_obj, kl_cost = [torch.zeros_like(loss_recon)] * 2
         else:
@@ -143,7 +151,7 @@ for epoch in range(150):
     # Testing loop
     # ----------------------------------------------------------------------
 
-    loss_, elbo_, kl_cost_, kl_obj_, recon_ = [[] for _ in range(5)]
+    loss_, elbo_, kl_cost_, kl_obj_, recon_xyz_, recon_pol_ = [[] for _ in range(6)]
     with torch.no_grad():
         model.eval()
         if epoch % 1 == 0:
@@ -152,22 +160,29 @@ for epoch in range(150):
                 img = img.cuda()
                 recon, kl_cost = model(img)
            
-                loss_recon = loss_fn(recon, img)
+                if args.no_polar:
+                    convert_xyz, convert_pol = lambda x : x, to_polar
+                else:
+                    convert_xyz, convert_pol = from_polar, lambda x : x
+
+                recon_xyz = loss_fn(convert_xyz(recon), convert_xyz(img))
+                recon_pol = loss_fn(convert_pol(recon), convert_pol(img))
 
                 if args.autoencoder:
-                    kl_obj, kl_cost = [torch.zeros_like(loss_recon)] * 2
+                    kl_obj, kl_cost = [torch.zeros_like(recon_xyz)] * 2
                 else:
                     kl_obj  =  min(1, float(epoch) / args.kl_warmup_epochs) * torch.clamp(kl_cost, min=5)
-                
-                loss = (kl_obj + loss_recon).mean(dim=0)
+               
+                loss = (kl_obj + (recon_xyz if args.no_polar else recon_pol)).mean(dim=0)
 
-                elbo = (kl_cost + loss_recon).mean(dim=0)
+                elbo = (kl_cost + (recon_xyz if args.no_polar else recon_pol)).mean(dim=0)
 
-                loss_    += [loss.item()]
-                elbo_    += [elbo.item()]
-                kl_cost_ += [kl_cost.mean(dim=0).item()]
-                kl_obj_  += [kl_obj.mean(dim=0).item()]
-                recon_   += [loss_recon.mean(dim=0).item()]
+                loss_      += [loss.item()]
+                elbo_      += [elbo.item()]
+                kl_cost_   += [kl_cost.mean(dim=0).item()]
+                kl_obj_    += [kl_obj.mean(dim=0).item()]
+                recon_xyz_ += [recon_xyz.mean(dim=0).item()]
+                recon_pol_ += [recon_pol.mean(dim=0).item()]
 
                 # if epoch % 5 != 0 and i > 5 : break
 
@@ -175,7 +190,8 @@ for epoch in range(150):
             print_and_log_scalar(writer, 'valid/elbo', mn(elbo_), writes)
             print_and_log_scalar(writer, 'valid/kl_cost_', mn(kl_cost_), writes)
             print_and_log_scalar(writer, 'valid/kl_obj_', mn(kl_obj_), writes)
-            print_and_log_scalar(writer, 'valid/recon', mn(recon_), writes)
+            print_and_log_scalar(writer, 'valid/recon_xyz', mn(recon_xyz_), writes)
+            print_and_log_scalar(writer, 'valid/recon_pol', mn(recon_pol_), writes)
             loss_, elbo_, kl_cost_, kl_obj_, recon_ = [[] for _ in range(5)]
 
             if epoch % 10 == 0:
