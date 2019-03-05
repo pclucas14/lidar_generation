@@ -1,4 +1,4 @@
-# lidar_generation
+# Lidar Generation
 
 Official Pytorch implementation of "Deep Generative Modeling of LiDAR data", which can be found [here](https://arxiv.org/abs/1812.01180)
 
