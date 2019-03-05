@@ -1,7 +1,7 @@
 # Deep Generative Modeling of LiDAR data
 
 Code for reproducing all results in our paper, which can be found [here](https://arxiv.org/abs/1812.01180) </br>
-Additional results can be found at the end of this README
+Additional results can be found [here](https://github.com/pclucas14/lidar_generation/#Additional-Results)
 
 ## (key) Requirements 
 - Pytorch 0.4.1/0.4.0
@@ -69,8 +69,25 @@ Additionally, we provide the tensorboard logs for all models trained in the hype
 |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/548.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/626.png">|
 |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/859.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/887.png">|
 
+#### reconstructions
+Our model learns a compressed representation of the input. Here we encode into a 512 dimensional vector, (a compression of 98%) and decode it back.
+
+| Original Lidar | Reconstruction from compressed (98%) encoding |
+|:-------------------------:|:-------------------------:|
+|<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/gifs/real_gif.gif"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/gifs/polar_clean.gif">|
 
 
+Surprisingly, our approch is highly robust to noisy input. Here we added gaussian noise on the input (shown on the left) rendering the lidar uninformative to the human eye. Yet, the model is able to reconstruct the point cloud with little performance loss. We note that the model  **was not trained on noisy data :O**
+
+| Noisy input | Reconstruction from noisy input|
+|:-------------------------:|:-------------------------:|
+|<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/gifs/corrupt_0.3.gif"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/gifs/xyz_0.3.gif">|
+
+Here we repeat the same corruption process, but with even more noise
+
+| Noisy input | Reconstruction from noisy input|
+|:-------------------------:|:-------------------------:|
+|<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/gifs/corrupt_0.7.gif"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/gifs/xyz_0.7.gif">|
 
 ## Aknowledgements
 Thanks to [Fxia2](https://github.com/fxia22/) for his NNDistance module. 
