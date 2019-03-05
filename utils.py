@@ -318,6 +318,7 @@ def get_chamfer_dist(get_slow=False):
 
 
 if __name__ == '__main__':
+    import pdb; pdb.set_trace()
     # check if both chamfer implementations give the same results
     ch_fast = get_chamfer_dist()
     ch_slow = get_chamfer_dist(get_slow=True)
