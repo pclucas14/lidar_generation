@@ -1,0 +1,3 @@
+Best model cross validated on valid/ELBO --> XYZ_to_POL_Z512_BS32_GLR0.0002_KLW100 at epoch 99.
+
+Please disreguard the 'XYZ_to_POL' prefix for the runs. I forgot to change it. Please refer to args.json for a complete hyperparameter list
