@@ -256,7 +256,6 @@ def load_model_from_file(path, epoch, model='dis'):
     else: 
         raise ValueError('%s is not a valid model name' % model)
 
-    
     model_.load_state_dict(torch.load(os.path.join(path, 'models/%s_%d.pth' % (model, epoch))))
     print('model successfully loaded')
 

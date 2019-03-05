@@ -6,9 +6,9 @@ import torch.optim as optim
 from torch.autograd import Variable
 from torchvision import datasets, transforms
 from pydoc import locate
-import tensorboardX
 import sys
 
+import __init__
 from utils import * 
 from models import * 
 
@@ -18,12 +18,13 @@ torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
 
 nb_samples = 200
-out_dir = os.path.join(sys.argv[1], 'final_samples')
+out_dir = os.path.join(sys.argv[3], 'final_samples')
 maybe_create_dir(out_dir)
 save_test_dataset = True
 
 
 with torch.no_grad():
+    '''
     # 1 ) unconditional generation
     print('unconditional generation')
     model = load_model_from_file(sys.argv[1], epoch=int(sys.argv[2]), model='gen')[0]
@@ -75,14 +76,16 @@ with torch.no_grad():
     if not is_vae:
         exit()
     
+    '''
     # 3) test set reconstruction
+    model = load_model_from_file(sys.argv[1], epoch=int(sys.argv[2]), model='gen')[0].cuda()
     print('test set reconstruction')
     try:
         dataset = np.load('kitti_data/lidar_test.npz')
     except:
-        dataset = np.load('../../lidar_generation/kitti_data/lidar_test.npz')
-    dataset = preprocess(dataset[::2]).astype('float32')
-    print(dataset[0].mean())
+        dataset = np.load('../lidar_generation/kitti_data/lidar_test.npz')
+    dataset = preprocess(dataset[::10]).astype('float32')
+    #print(dataset[0].mean())
 
     if save_test_dataset: 
         np.save(os.path.join(out_dir, 'test_set'), dataset)
@@ -91,21 +94,31 @@ with torch.no_grad():
     loader = torch.utils.data.DataLoader(dataset_test, batch_size=10,
                         shuffle=False, num_workers=4, drop_last=False)
 
+    '''
     samples = []
     real = []
     for real_data in loader:
-        print(real_data[0].mean())
+        #print(real_data[0].mean())
         real_data = real_data.cuda()
         out = model(real_data)[0].cpu().data
         samples += [out]
         real += [real_data]
     
 
-    samples = torch.cat(samples, dim=0)
-    real = torch.cat(real, dim=0)
+    samples = torch.cat(samples, dim=0).cpu().data.numpy()#.transpose(0, 2, 1)
+    real    = torch.cat(real, dim=0).cpu().data.numpy()
+
+    if not model.args.no_polar:
+        samples, real = from_polar_np(samples), from_polar_np(real)
+
+    for i in range(samples.shape[0]):
+        show_pc(samples[i], save_path=os.path.join(out_dir, 'ATLASsample_%d.png' % i))
+        #show_pc(real[i],    save_path=os.path.join(out_dir,   'ATLASreal_%d.png' % i))
+    
+    
+    exit()
     np.save(os.path.join(out_dir, 'recon'), samples.cpu().data.numpy())
     np.save(os.path.join(out_dir, 'real'), real.cpu().data.numpy())
-    exit()
     
     real_data = next(loader).cuda()
     out = model(real_data)[0]
@@ -130,30 +143,64 @@ with torch.no_grad():
         shp = out.shape
         out = to_polar(out.reshape(shp[0] * shp[1], shp[2], shp[3], shp[4]))
         out = out.reshape(*shp)
-    elif model.args.atlas_baseline:
-        import pdb; pdb.set_trace()
         a = 1
 
     out = torch.cat([bb.unsqueeze(1), out, aa.unsqueeze(1)], dim=1)
     for i, inter in enumerate(out[:100]):
         np.save(os.path.join(out_dir, 'cond_inter_%d' % i), inter.cpu().data.numpy())
 
+    '''
     print('noisy reconstruction')
-    for noise in [0.01, 0.05, 0.1, 0.5]:
-        input = real_data + torch.zeros_like(real_data).normal_(0, noise)
-        input = input.cuda()
-        recon = model(input)[0]
+    for noise in [0.7, 0.8, 0.9, 1.]:
+        for batch in loader:
 
-        out = torch.stack([real_data, recon, input], dim=1)
-    
-        if model.args.no_polar and not model.args.atlas_baseline:
-            shp = out.shape
-            out = to_polar(out.reshape(shp[0] * shp[1], shp[2], shp[3], shp[4]))
-            out = out.reshape(*shp)
+            batch = batch.cuda()
+            if not model.args.no_polar:
+                batch = from_polar(batch)
+            
+            batch_xyz = batch
+            noise_tensor = torch.zeros_like(batch_xyz).normal_(0, noise)
 
-        out = out.reshape(out.size(0) * out.size(1), out.size(2), out.size(3), out.size(4))
-        np.save(os.path.join(out_dir, 'noisy_recon_{}'.format(noise)), out.cpu().data.numpy())
-    
+            means = batch_xyz.transpose(1,0).reshape((3, -1)).mean(dim=-1)
+            stds  = batch_xyz.transpose(1,0).reshape((3, -1)).std(dim=-1)
+            means, stds = [x.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) for x in [means, stds]]
+
+            # normalize data
+            norm_batch_xyz = (batch_xyz - means) / (stds + 1e-9)
+            # add the noise
+            input = norm_batch_xyz + noise_tensor
+
+            # unnormalize
+            input = input * (stds + 1e-9) + means
+
+            if not model.args.no_polar:
+                input = to_polar(input)
+            
+            recon = model(input)[0]
+
+            ind = -1
+            show = show_pc_lite
+            reals = batch_xyz[ind].reshape(3, -1).transpose(1,0)
+            fakes = from_polar(recon)[ind].reshape(3, -1).transpose(1,0)
+            corr  = from_polar(input)[ind].reshape(3, -1).transpose(1,0)
+            last = 'line'
+            break
+
+            '''
+
+            out = torch.stack([real_data, recon, input], dim=1)
+        
+            if model.args.no_polar and not model.args.atlas_baseline:
+                shp = out.shape
+                out = to_polar(out.reshape(shp[0] * shp[1], shp[2], shp[3], shp[4]))
+                out = out.reshape(*shp)
+
+            out = out.reshape(out.size(0) * out.size(1), out.size(2), out.size(3), out.size(4))
+            np.save(os.path.join(out_dir, 'noisy_recon_{}'.format(noise)), out.cpu().data.numpy())
+            '''
+
+
+    '''
     ''' 
     print('corrupted reconstruction')
     for missing in [0.1, 0.25, 0.5, 0.75, 0.9]:
@@ -164,4 +211,3 @@ with torch.no_grad():
         out = torch.stack([real_data, recon, input], dim=1)
         out = out.reshape(out.size(0) * out.size(1), out.size(2), out.size(3), out.size(4))
         np.save(os.path.join(out_dir, 'missing_recon_{}'.format(missing)), out.cpu().data.numpy())
-    '''

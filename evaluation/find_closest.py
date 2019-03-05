@@ -5,13 +5,13 @@ import torch
 import torch.utils.data
 import torch.nn as nn
 import torch.optim as optim
-from torch.autograd import Variable
 from torchvision import datasets, transforms
 from pydoc import locate
 import tensorboardX
 import argparse
 import sys
 
+import __init__
 from utils import * 
 from models import * 
 
