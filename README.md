@@ -62,12 +62,6 @@ Additionally, we provide the tensorboard logs for all models trained in the hype
 `tensorboard --logdir=trained_models/`
 
 ## Additional Results
-#### samples from GAN model
-| | |
-|:-------------------------:|:-------------------------:|
-|<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/11.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/174.png">|
-|<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/548.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/626.png">|
-|<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/859.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/887.png">|
 
 #### reconstructions
 Our model learns a compressed representation of the input. Here we encode into a 512 dimensional vector, (a compression of 98%) and decode it back.
@@ -89,8 +83,18 @@ Here we repeat the same corruption process, but with even more noise
 |:-------------------------:|:-------------------------:|
 |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/gifs/corrupt_0.7.gif"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/gifs/xyz_0.7.gif">|
 
+#### samples from GAN model
+| | |
+|:-------------------------:|:-------------------------:|
+|<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/11.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/174.png">|
+|<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/548.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/626.png">|
+|<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/859.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/887.png">|
+
+
+
 ## Aknowledgements
 Thanks to [Fxia2](https://github.com/fxia22/) for his NNDistance module. 
 Thanks to [Thibault GROUEIX](https://github.com/ThibaultGROUEIX) and [Panos Achlioptas](https://github.com/optas) for open sourcing their code. </br>
-Thanks to [Alexia JM](https://github.com/AlexiaJM/RelativisticGAN) for her open source code on Relativistic GANs. Please check out her work if you are working with GANs!
+Thanks to [Alexia JM](https://github.com/AlexiaJM/RelativisticGAN) for her open source code on Relativistic GANs. Please check out her work if you are working with GANs! <br/>
+Thanks to Alexandre Bachaalani for his video editing help!
 
