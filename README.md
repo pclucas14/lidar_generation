@@ -89,6 +89,7 @@ Here we repeat the same corruption process, but with even more noise
 |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/11.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/174.png">|
 |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/548.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/626.png">|
 |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/859.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/887.png">|
+|<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/208.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/245.png">|
 
 
 
