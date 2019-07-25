@@ -1,0 +1,3 @@
+Best model cross validated on valid/recon --> XYZ_to_POL_Z512_BS32_GLR0.0005 at epoch 259
+
+Please disreguard the 'XYZ_to_POL' prefix for the runs. I forgot to change it. Please refer to args.json for a complete hyperparameter list

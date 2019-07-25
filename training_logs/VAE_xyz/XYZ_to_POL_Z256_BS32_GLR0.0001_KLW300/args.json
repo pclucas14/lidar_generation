@@ -1,0 +1,1 @@
+{"use_spectral_norm": 0, "optim": "Adam", "autoencoder": 0, "kl_warmup_epochs": 300, "z_dim": 256, "lr": 0.0001, "use_round_conv": 0, "atlas_baseline": 0, "iaf": 0, "panos_baseline": 0, "base_dir": "/scratch/lpagec/lidar_vae//XYZ_to_POL_Z256_BS32_GLR0.0001_KLW300", "debug": false, "use_selu": 0, "batch_size": 32, "no_polar": 0}

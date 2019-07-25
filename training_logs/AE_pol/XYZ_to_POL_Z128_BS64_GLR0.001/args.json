@@ -1,0 +1,1 @@
+{"use_round_conv": 0, "optim": "Adam", "debug": false, "use_spectral_norm": 0, "base_dir": "/scratch/lpagec/lidar_rest/XYZ_to_POL_Z128_BS64_GLR0.001", "kl_warmup_epochs": 150, "batch_size": 64, "autoencoder": 1, "z_dim": 128, "atlas_baseline": 0, "panos_baseline": 0, "no_polar": 0, "iaf": 0, "use_selu": 0, "lr": 0.001}

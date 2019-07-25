@@ -1,0 +1,1 @@
+{"use_spectral_norm": 0, "atlas_baseline": 0, "autoencoder": 1, "kl_warmup_epochs": 150, "use_round_conv": 0, "optim": "Adam", "use_selu": 0, "iaf": 0, "z_dim": 256, "batch_size": 128, "lr": 0.0005, "panos_baseline": 1, "debug": false, "no_polar": 0, "base_dir": "/mnt/data/lpagec/lidar_baseline/panos_Z256_BS128_GLR0.0005"}

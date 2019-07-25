@@ -1,0 +1,1 @@
+{"batch_size": 64, "use_selu": 0, "use_spectral_norm": 0, "use_round_conv": 0, "base_dir": "/mnt/data/lpagec/lidar_baseline/XYZtoPOL_Z512_BS64_GLR0.0005", "no_polar": 1, "optim": "Adam", "lr": 0.0005, "z_dim": 512, "iaf": 0, "autoencoder": 1, "atlas_baseline": 0, "panos_baseline": 0, "kl_warmup_epochs": 150, "loss_rep": "polar", "debug": false}

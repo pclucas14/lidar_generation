@@ -6,12 +6,7 @@ import os
 # -------------------------------------------------------------------------
 # Handy Utilities
 # -------------------------------------------------------------------------
-def to_polar(velo):
-    if isinstance(velo, torch.Tensor):
-        velo = velo.cpu().data.numpy()
-        convert = True
-    else:
-        convert = False
+def to_polar_np(velo):
     if len(velo.shape) == 4:
         velo = velo.transpose(1, 2, 3, 0)
 
@@ -32,9 +27,31 @@ def to_polar(velo):
 
     if len(velo.shape) == 4: 
         out = out.transpose(3, 0, 1, 2)
+    
+    return out
 
-    if convert : 
-        out = torch.Tensor(out).cuda()
+def to_polar(velo):
+    if len(velo.shape) == 4:
+        velo = velo.permute(1, 2, 3, 0)
+
+    if velo.shape[2] > 4:
+        assert velo.shape[0] <= 4
+        velo = velo.permute(1, 2, 0, 3)
+        switch=True
+    else:
+        switch=False
+    
+    # assumes r x n/r x (3,4) velo
+    dist = torch.sqrt(velo[:, :, 0] ** 2 + velo[:, :, 1] ** 2)
+    # theta = np.arctan2(velo[:, 1], velo[:, 0])
+    out = torch.stack([dist, velo[:, :, 2]], dim=2)
+    
+    if switch:
+        out = out.permute(2, 0, 1, 3)
+
+    if len(velo.shape) == 4: 
+        out = out.permute(3, 0, 1, 2)
+    
     return out
 
 def from_polar(velo):
@@ -47,55 +64,12 @@ def from_polar(velo):
     return out
 
 def from_polar_np(velo):
-    if velo.ndim == 3: 
-        velo = velo.reshape((1, *velo.shape))
-        unsqueeze = True
-    else:
-        unsqueeze = False
-
     angles = np.linspace(0, np.pi * 2, velo.shape[-1])
     dist, z = velo[:, 0], velo[:, 1]
     x = np.cos(angles) * dist
     y = np.sin(angles) * dist
     out = np.stack([x,y,z], axis=1)
-    if unsqueeze: out = out.squeeze()
-
     return out.astype('float32')
-
-
-def augment_with_rotations(data, num_rotations=36):
-    # data is a numpy array of shape bs x 3 x _ x _ 
-    assert data.shape[-1] == 3
-
-    if isinstance(data, np.ndarray):
-        data = torch.Tensor(data).float().cuda()
-
-    # build rotation matrices
-    angles = torch.arange(num_rotations).float().cuda() * (2 * np.pi) / num_rotations
-    cos    = torch.cos(angles)
-    sin    = torch.sin(angles)
-    zer    = torch.zeros_like(angles)
-    ones   = torch.ones_like(angles)
-
-    matrices = torch.stack([cos, -sin, zer, sin, cos, zer, zer, zer, ones])
-
-    matrices = matrices.reshape(3, 3, angles.size(0))
-
-    try:
-        out = torch.einsum('abcd,def->abcef', (data, matrices))
-        out = out.permute(0, 4, 1, 2, 3)
-        out = out.reshape(-1, out.size(2), out.size(3), out.size(4))
-    except Exception as e:
-        assert 'CUDA error: out of memory' in str(e)
-        print('OOM. going on CPU')
-        data = data.cpu()
-        matrices = matrices.cpu()
-        out = torch.einsum('abcd,def->abcef', (data, matrices))
-        out = out.permute(0, 4, 1, 2, 3)
-        out = out.reshape(-1, out.size(2), out.size(3), out.size(4))
-    
-    return out
-        
 
 def print_and_log_scalar(writer, name, value, write_no, end_token=''):
     if isinstance(value, list):
@@ -166,7 +140,7 @@ def remove_zeros(pc):
     return xx.cpu().data.numpy()
 
 
-def preprocess(dataset, downsize=True):
+def preprocess(dataset):
     # remove outliers 
     #min_a, max_a = np.percentile(dataset[:, :, :, [0]], 1), np.percentile(dataset[:, :, :, [0]], 99)
     #min_b, max_b = np.percentile(dataset[:, :, :, [1]], 1), np.percentile(dataset[:, :, :, [1]], 99)
@@ -187,12 +161,12 @@ def preprocess(dataset, downsize=True):
     dataset = dataset * (1 - np.expand_dims(mask, -1))
     dataset /= np.absolute(dataset).max()
 
-    dataset = to_polar(dataset).transpose(0, 3, 1, 2)
+    dataset = to_polar_np(dataset).transpose(0, 3, 1, 2)
     previous = (dataset[:, 0] == 0).sum()
 
     remove = []
     for i in range(dataset.shape[0]):
-        # print('processing {}/{}'.format(i, dataset.shape[0]))
+        #print('processing {}/{}'.format(i, dataset.shape[0]))
         try:
             pp = remove_zeros(dataset[i]).squeeze(0)
             dataset[i] = pp
@@ -203,7 +177,7 @@ def preprocess(dataset, downsize=True):
     for i in remove:
         dataset = np.concatenate([dataset[:i-1], dataset[i+1:]], axis=0)
 
-    return dataset[:, :, :, ::2] if downsize else dataset
+    return dataset[:, :, :, ::2]
 
 
 def show_pc(velo, save=0, save_path=None):
@@ -212,13 +186,10 @@ def show_pc(velo, save=0, save_path=None):
     fig = mayavi.mlab.figure(size=(1400, 700), bgcolor=(0,0,0)) 
 
     if len(velo.shape) == 3:
-        if velo.shape[0] in [2, 3] : 
+        if velo.shape[0] == 3 : 
             velo = velo.transpose(1,2,0)
 
-        if velo.shape[2] != 3:
-            assert velo.shape[2] == 2 
-            velo = from_polar_np(velo)
-
+        assert velo.shape[2] == 3
         velo = velo.reshape((-1, 3))
 
     max_ = np.absolute(velo[:, :2]).max()
@@ -251,6 +222,12 @@ def show_pc(velo, save=0, save_path=None):
     else:
         mayavi.mlab.show()
 
+def show_pc_lite(velo, ind=1, show=True):
+    import matplotlib.pyplot as plt
+    plt.scatter(velo[:, 0], velo[:, 1], s=0.7, color='k')
+    plt.show() 
+
+
 def to_attr(args_dict):
     class AttrDict(dict):
         def __init__(self, *args, **kwargs):
@@ -279,26 +256,49 @@ def load_model_from_file(path, epoch, model='dis'):
     else: 
         raise ValueError('%s is not a valid model name' % model)
 
-    
     model_.load_state_dict(torch.load(os.path.join(path, 'models/%s_%d.pth' % (model, epoch))))
     print('model successfully loaded')
 
     return model_, epoch 
 
 
+def batch_pairwise_dist(A, B):
+    # pa, pb are bs x points x 3
+    r_A = (A * A).sum(dim=2, keepdim=True)
+    r_B = (B * B).sum(dim=2, keepdim=True)
+    m = torch.bmm(A, B.permute(0, 2, 1))
+    D = r_A - 2 * m + r_B.permute(0, 2, 1)
+    return D
+
+def chamfer_quadratic(a,b):
+    D = batch_pairwise_dist(a,b)
+    return D.min(dim=-1)[0], D.min(dim=-2)[0]
+
+
 # Utilities for baseline
-def get_chamfer_dist():
-    import sys
-    sys.path.insert(0, './nndistance')
-    from modules.nnd import NNDModule
-    dist = NNDModule()
+def get_chamfer_dist(get_slow=False):
+    try:
+        if get_slow: raise ValueError
+
+        import sys
+        sys.path.insert(0, './nndistance')
+        from modules.nnd import NNDModule
+        dist = NNDModule()
+    except:
+        dist = chamfer_quadratic
 
     def loss(a, b):
         if a.dim() == 4:
+            if a.size(1) == 2: 
+                a = from_polar(a)
+
             assert a.size(1) == 3
             a = a.permute(0, 2, 3, 1).contiguous().reshape(a.size(0), -1, 3)
             
         if b.dim() == 4:
+            if b.size(1) == 2: 
+                b = from_polar(b)
+
             assert b.size(1) == 3
             b = b.permute(0, 2, 3, 1).contiguous().reshape(b.size(0), -1, 3)
 
@@ -317,22 +317,16 @@ def get_chamfer_dist():
     return loss
 
 
-def batch_pairwise_dist(x, y):
-    if x.size(-1) != 3 : x = x.transpose(2,1)
-    if y.size(-1) != 3 : y = y.transpose(2,1)
-    bs, num_points, points_dim = x.size()
-    xx = torch.bmm(x, x.transpose(2,1))
-    yy = torch.bmm(y, y.transpose(2,1))
-    zz = torch.bmm(x, y.transpose(2,1))
-    diag_ind = torch.arange(0, num_points).type(torch.LongTensor).cuda()
-    rx = xx[:, diag_ind, diag_ind].unsqueeze(1).expand_as(xx)
-    ry = yy[:, diag_ind, diag_ind].unsqueeze(1).expand_as(xx)
-    P = (rx.transpose(2,1) + ry - 2*zz)
-    return P
-    
-
-
 if __name__ == '__main__':
     import pdb; pdb.set_trace()
-    xx = np.load('sample_200.npz')[0]
-    show_pc(xx)
+    # check if both chamfer implementations give the same results
+    ch_fast = get_chamfer_dist()
+    ch_slow = get_chamfer_dist(get_slow=True)
+
+    for _ in range(10):
+        x = torch.cuda.FloatTensor(32, 1000, 3).normal_()
+        y = torch.cuda.FloatTensor(32, 1000, 3).normal_()
+        
+        out_fast = ch_fast(x,y)
+        out_slow = ch_slow(x,y)
+
