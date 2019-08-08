@@ -1,4 +1,4 @@
-# Deep Generative Modeling of LiDAR data
+# Deep Generative Modeling of LiDAR data (IROS 2019)
 
 Code for reproducing all results in our paper, which can be found [here](https://arxiv.org/abs/1812.01180) </br>
 Additional results can be found [here](https://github.com/pclucas14/lidar_generation/#Additional-Results)
