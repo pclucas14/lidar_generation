@@ -1,4 +1,4 @@
-# Deep Generative Modeling of LiDAR data
+# Deep Generative Modeling of LiDAR data (IROS 2019)
 
 Code for reproducing all results in our paper, which can be found [here](https://arxiv.org/abs/1812.01180) </br>
 Additional results can be found [here](https://github.com/pclucas14/lidar_generation/#Additional-Results)
@@ -64,9 +64,9 @@ Additionally, we provide the tensorboard logs for all models trained in the hype
 ## Additional Results
 
 #### reconstructions
-Our model learns a compressed representation of the input. Here we encode into a 512 dimensional vector, (a compression of 98%) and decode it back.
+Our model learns a compressed representation of the input. Here we encode into a 512 dimensional vector, (60x smaller than original input) and decode it back.
 
-| Original Lidar | Reconstruction from compressed (98%) encoding |
+| Original Lidar | Reconstruction from compressed (60x smaller) encoding |
 |:-------------------------:|:-------------------------:|
 |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/gifs/real_gif.gif"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/gifs/polar_clean.gif">|
 
