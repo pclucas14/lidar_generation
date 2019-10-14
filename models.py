@@ -11,7 +11,7 @@ from utils import *
 
 
 # --------------------------------------------------------------------------
-# Core Models 
+# Core Models
 # --------------------------------------------------------------------------
 class netG(nn.Module):
     def __init__(self, args, nz=100, ngf=64, nc=3, base=4, ff=(2,16)):
@@ -21,19 +21,19 @@ class netG(nn.Module):
 
         layers  = []
         layers += [nn.ConvTranspose2d(nz, ngf * 8, ff, 1, 0, bias=False)]
-        layers += [nn.BatchNorm2d(ngf * 8)] 
+        layers += [nn.BatchNorm2d(ngf * 8)]
         layers += [nn.ReLU(True)]
 
         layers += [nn.ConvTranspose2d(ngf * 8, ngf * 4, (3,4), stride=2, padding=(0,1), bias=False)]
-        layers += [nn.BatchNorm2d(ngf * 4)] 
+        layers += [nn.BatchNorm2d(ngf * 4)]
         layers += [nn.ReLU(True)]
-        
+
         layers += [nn.ConvTranspose2d(ngf * 4, ngf * 2, (4,4), stride=2, padding=(1,1), bias=False)]
-        layers += [nn.BatchNorm2d(ngf * 2)] 
+        layers += [nn.BatchNorm2d(ngf * 2)]
         layers += [nn.ReLU(True)]
-        
+
         layers += [nn.ConvTranspose2d(ngf * 2, ngf * 1, (4,4), stride=2, padding=(1,1), bias=False)]
-        layers += [nn.BatchNorm2d(ngf * 1)] 
+        layers += [nn.BatchNorm2d(ngf * 1)]
         layers += [nn.ReLU(True)]
 
         layers += [nn.ConvTranspose2d(ngf, nc, 4, 2, 1, bias=False)]
@@ -42,9 +42,9 @@ class netG(nn.Module):
         self.main = nn.Sequential(*layers)
 
     def forward(self, input):
-        if len(input.shape) == 2: 
+        if len(input.shape) == 2:
             input = input.unsqueeze(-1).unsqueeze(-1)
-        
+
         return self.main(input)
 
 
@@ -52,20 +52,20 @@ class netD(nn.Module):
     def __init__(self, args, ndf=64, nc=2, nz=1, lf=(2,16)):
         super(netD, self).__init__()
         self.encoder = True if nz > 1 else False
-        
+
         layers  = []
         layers += [nn.Conv2d(nc, ndf, 4, 2, 1, bias=False)]
         layers += [nn.LeakyReLU(0.2, inplace=True)]
         layers += [nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False)]
-        
+
         layers += [nn.BatchNorm2d(ndf * 2)]
         layers += [nn.LeakyReLU(0.2, inplace=True)]
         layers += [nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False)]
-        
+
         layers += [nn.BatchNorm2d(ndf * 4)]
         layers += [nn.LeakyReLU(0.2, inplace=True)]
         layers += [nn.Conv2d(ndf * 4, ndf * 8, (3,4), 2, (0,1), bias=False)]
-        
+
         layers += [nn.BatchNorm2d(ndf * 8)]
         layers += [nn.LeakyReLU(0.2, inplace=True)]
 
@@ -73,16 +73,16 @@ class netD(nn.Module):
         self.out  = nn.Conv2d(ndf * 8, nz, lf, 1, 0, bias=False)
 
     def forward(self, input, return_hidden=False):
-        if input.size(-1) == 3: 
+        if input.size(-1) == 3:
             input = input.transpose(1, 3)
-        
+
         output_tmp = self.main(input)
         output = self.out(output_tmp)
-       
+
         if return_hidden:
             return output, output_tmp
-        
-        return output if self.encoder else output.view(-1, 1).squeeze(1) 
+
+        return output if self.encoder else output.view(-1, 1).squeeze(1)
 
 
 class VAE(nn.Module):
@@ -91,31 +91,28 @@ class VAE(nn.Module):
         self.args = args
 
         if args.atlas_baseline or args.panos_baseline:
-            self.AE = AE_AtlasNet(bottleneck_size=args.z_dim, 
-                                  AE=args.autoencoder, 
+            self.AE = AE_AtlasNet(bottleneck_size=args.z_dim,
+                                  AE=args.autoencoder,
                                   nb_primitives=args.atlas_baseline)
             self.encode = self.AE.encode
-            self.decode = self.AE.decode if args.atlas_baseline else PointGenPSG2(nz=args.z_dim) 
-        else: 
+            self.decode = self.AE.decode if args.atlas_baseline else PointGenPSG2(nz=args.z_dim)
+        else:
             mult = 1 if args.autoencoder else 2
             self.encode = netD(args, nz=args.z_dim * mult, nc=3 if args.no_polar else 2)
             self.decode = netG(args, nz=args.z_dim, nc=2)
 
-        if not args.autoencoder and args.iaf:
-            self.iaf = IAF(latent_size=args.z_dim)
-
     def forward(self, x):
         z = self.encode(x)
-        while z.dim() != 2: 
+        while z.dim() != 2:
             z = z.squeeze(-1)
-            
+
         if self.args.autoencoder:
             return self.decode(z), None
         else:
             mu, logvar = torch.chunk(z, 2, dim=1)
             std = torch.exp(0.5 * logvar)
             eps = torch.randn_like(std)
-            
+
             # simple way to get better reconstructions. Note that this is not a valid NLL_test bd
             z = eps.mul(std).add_(mu) if self.training else mu
 
@@ -131,11 +128,11 @@ class VAE(nn.Module):
     @staticmethod
     def gaussian_kl(mu, logvar):
         return -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=-1)
-        
+
     @staticmethod
     def log_gauss(z, params):
         [mu, std] = params
-        return - 0.5 * (t.pow(z - mu, 2) * t.pow(std + 1e-8, -2) + 2 * t.log(std + 1e-8) + math.log(2 * math.pi)).sum(1) 
+        return - 0.5 * (t.pow(z - mu, 2) * t.pow(std + 1e-8, -2) + 2 * t.log(std + 1e-8) + math.log(2 * math.pi)).sum(1)
 
 
 # --------------------------------------------------------------------------
@@ -157,7 +154,7 @@ class PointNetfeat_(nn.Module):
         self.global_feat = global_feat
     def forward(self, x):
         batchsize = x.size()[0]
-        
+
         x = F.relu(self.bn1(self.conv1(x)))
         pointfeat = x
         x = F.relu(self.bn2(self.conv2(x)))
@@ -183,7 +180,7 @@ class PointGenCon(nn.Module):
 
     def forward(self, x):
         batchsize = x.size()[0]
-        
+
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
@@ -208,16 +205,16 @@ class AE_AtlasNet(nn.Module):
 
 
     def encode(self, x):
-        if x.dim() == 4 : 
-            if x.size(1) != 3: 
-                assert x.size(-1) == 3 
+        if x.dim() == 4 :
+            if x.size(1) != 3:
+                assert x.size(-1) == 3
                 x = x.permute(0, 3, 1, 2).contiguous()
             x = x.reshape(x.size(0), 3, -1)
-        else: 
-            if x.size(1) != 3: 
-                assert x.size(-1) == 3 
+        else:
+            if x.size(1) != 3:
+                assert x.size(-1) == 3
                 x = x.transpose(-1, -2).contiguous()
-        
+
         x = self.encoder(x)
         return x
 
@@ -259,11 +256,11 @@ class PointGenPSG2(nn.Module):
         self.fc41 = nn.Linear(1024, self.num_points * 3 // 2)
         self.th = nn.Tanh()
         self.nz = nz
-        
-    
+
+
     def forward(self, x):
         batchsize = x.size()[0]
-        
+
         x1 = x
         x2 = x
         x1 = F.relu(self.fc1(x1))
