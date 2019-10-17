@@ -92,10 +92,22 @@ Here we repeat the same corruption process, but with even more noise
 |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/208.png"> |<img width="1604" src="https://github.com/pclucas14/lidar_generation/blob/master/samples/245.png">|
 
 
-
 ## Aknowledgements
 Thanks to [Fxia2](https://github.com/fxia22/) for his NNDistance module. 
 Thanks to [Thibault GROUEIX](https://github.com/ThibaultGROUEIX) and [Panos Achlioptas](https://github.com/optas) for open sourcing their code. </br>
 Thanks to [Alexia JM](https://github.com/AlexiaJM/RelativisticGAN) for her open source code on Relativistic GANs. Please check out her work if you are working with GANs! <br/>
 Thanks to Alexandre Bachaalani for his video editing help!
+
+
+## Citation
+
+If you find this code useful please cite us in your work.
+```
+@article{caccia2018deep,
+  title={Deep Generative Modeling of LiDAR Data},
+  author={Caccia, Lucas and van Hoof, Herke and Courville, Aaron and Pineau, Joelle},
+  journal={2019 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  year={2018}
+}
+```
 
