@@ -103,11 +103,13 @@ Thanks to Alexandre Bachaalani for his video editing help!
 
 If you find this code useful please cite us in your work.
 ```
-@article{caccia2018deep,
-  title={Deep Generative Modeling of LiDAR Data},
-  author={Caccia, Lucas and van Hoof, Herke and Courville, Aaron and Pineau, Joelle},
-  journal={2019 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
-  year={2018}
-}
+@INPROCEEDINGS{8968535,
+  author={L. {Caccia} and H. v. {Hoof} and A. {Courville} and J. {Pineau}},
+  booktitle={2019 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, 
+  title={Deep Generative Modeling of LiDAR Data}, 
+  year={2019},
+  volume={},
+  number={},
+  pages={5034-5040},}
 ```
 
